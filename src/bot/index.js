@@ -1,16 +1,17 @@
 const { Telegraf, Markup } = require("telegraf");
 const supabase = require("../database/supabase");
 
+console.log("🚀 InfraPix v2.0 carregado");
+
 
 const waitingDeposit = {};
 const waitingWithdraw = {};
 
 
 
-// ==========================
+// ========================
 // MENUS
-// ==========================
-
+// ========================
 
 function mainMenu(){
 
@@ -18,11 +19,11 @@ return Markup.inlineKeyboard([
 
 [
 Markup.button.callback("💰 Depositar Pix","deposit"),
-Markup.button.callback("📤 Saque Pix","withdraw")
+Markup.button.callback("📤 Sacar Pix","withdraw")
 ],
 
 [
-Markup.button.callback("💼 Minha Carteira","wallet"),
+Markup.button.callback("💼 Carteira","wallet"),
 Markup.button.callback("🌐 Minha Rede","network")
 ],
 
@@ -36,12 +37,16 @@ Markup.button.callback("🔄 Atualizar","refresh")
 
 
 
-function backMenu(){
+function cancelMenu(){
 
 return Markup.inlineKeyboard([
 
 [
-Markup.button.callback("⬅️ Voltar","back")
+Markup.button.callback(
+"❌ Cancelar",
+"cancel"
+)
+
 ]
 
 ]);
@@ -50,10 +55,9 @@ Markup.button.callback("⬅️ Voltar","back")
 
 
 
-
-// ==========================
+// ========================
 // SUPABASE
-// ==========================
+// ========================
 
 
 async function getMedia(slug){
@@ -69,7 +73,10 @@ const {data,error}=await supabase
 
 if(error){
 
-console.log(error.message);
+console.log(
+"Erro mídia:",
+error.message
+);
 
 return null;
 
@@ -79,7 +86,6 @@ return null;
 return data?.telegram_file_id || null;
 
 }
-
 
 
 
@@ -99,32 +105,29 @@ return data?.value || null;
 
 
 
-
-
 async function getUser(ctx){
 
-
 const telegram_id = ctx.from.id;
-
 
 
 let {data:user}=await supabase
 
 .from("users")
 .select("*")
-.eq("telegram_id",telegram_id)
+.eq(
+"telegram_id",
+telegram_id
+)
 .single();
 
 
 
 if(!user){
 
-
 const result =
 await supabase
 
 .from("users")
-
 .insert({
 
 telegram_id,
@@ -136,13 +139,11 @@ first_name:
 ctx.from.first_name || ""
 
 })
-
 .select()
 .single();
 
 
 user=result.data;
-
 
 }
 
@@ -153,15 +154,16 @@ return user;
 
 
 
-
 async function getWallet(user_id){
-
 
 const {data}=await supabase
 
 .from("wallets")
 .select("*")
-.eq("user_id",user_id)
+.eq(
+"user_id",
+user_id
+)
 .single();
 
 
@@ -173,9 +175,9 @@ return data;
 
 
 
-// ==========================
-// BOT
-// ==========================
+// ========================
+// INICIAR BOT
+// ========================
 
 
 function initBot(){
@@ -188,11 +190,9 @@ process.env.TELEGRAM_TOKEN
 
 
 
-
-
-// ==========================
+// ========================
 // START
-// ==========================
+// ========================
 
 
 bot.start(async(ctx)=>{
@@ -201,46 +201,32 @@ bot.start(async(ctx)=>{
 await getUser(ctx);
 
 
-
 const banner =
-await getMedia("banner_start");
+await getMedia(
+"banner_start"
+);
 
 
 
 const text =
 
 `
-🚀 <b>Bem-vindo ao InfraPix</b>
+🚀 <b>InfraPix</b>
 
+Sua carteira Pix inteligente.
 
-Sua carteira Pix inteligente dentro do Telegram.
+💰 Deposite saldo
+📤 Solicite saques
+📊 Acompanhe movimentações
 
+Rápido, simples e seguro.
 
-Receba, envie e gerencie seus valores de forma rápida e prática.
-
-
-✨ Recursos disponíveis:
-
-
-💰 Depósitos via Pix
-
-⚡ Pagamentos automatizados
-
-📤 Saques rápidos
-
-📊 Controle de movimentações
-
-
-Tudo em um único lugar.
-
-
-Escolha uma opção abaixo:
+Escolha uma opção:
 `;
 
 
 
 if(banner){
-
 
 await ctx.replyWithPhoto(
 
@@ -259,7 +245,6 @@ mainMenu().reply_markup
 
 );
 
-
 }else{
 
 
@@ -287,13 +272,14 @@ mainMenu().reply_markup
 
 
 
+// ========================
+// DEPÓSITO
+// ========================
 
-// ==========================
-// DEPOSITAR
-// ==========================
 
-
-bot.action("deposit",async(ctx)=>{
+bot.action(
+"deposit",
+async(ctx)=>{
 
 
 await ctx.answerCbQuery();
@@ -304,52 +290,28 @@ waitingDeposit[ctx.from.id]=true;
 
 
 const image =
-await getMedia("deposit_screen");
-
-
-
-const minimum =
-Number(await getSetting("minimum_deposit") || 5);
-
-
-
-const maximum =
-Number(await getSetting("maximum_deposit") || 10000);
+await getMedia(
+"deposit_screen"
+);
 
 
 
 const text =
 
 `
-💰 <b>DEPÓSITO VIA PIX</b>
+💰 <b>Depósito Pix</b>
 
+Adicione saldo à sua carteira.
 
-Adicione saldo à sua carteira de forma rápida e segura.
+Digite o valor desejado:
 
-
-Digite abaixo o valor que deseja depositar.
-
-
-Exemplo:
-
-50
-
-
-Após informar o valor, seu Pix será gerado automaticamente.
-
+Exemplo: 50
 
 📌 Limites:
+• Mínimo: R$ 10,00
+• Máximo: R$ 1.000,00
 
-
-Mínimo:
-R$ ${minimum.toFixed(2)}
-
-
-Máximo:
-R$ ${maximum.toFixed(2)}
-
-
-⚡ O saldo será liberado após confirmação do pagamento.
+⚡ Após informar o valor, seu Pix será gerado automaticamente.
 `;
 
 
@@ -368,7 +330,7 @@ caption:text,
 parse_mode:"HTML",
 
 reply_markup:
-backMenu().reply_markup
+cancelMenu().reply_markup
 
 }
 
@@ -387,7 +349,7 @@ text,
 parse_mode:"HTML",
 
 reply_markup:
-backMenu().reply_markup
+cancelMenu().reply_markup
 
 }
 
@@ -403,13 +365,14 @@ backMenu().reply_markup
 
 
 
+// ========================
+// SAQUE
+// ========================
 
-// ==========================
-// SACAR
-// ==========================
 
-
-bot.action("withdraw",async(ctx)=>{
+bot.action(
+"withdraw",
+async(ctx)=>{
 
 
 await ctx.answerCbQuery();
@@ -422,21 +385,15 @@ waitingWithdraw[ctx.from.id]=true;
 await ctx.reply(
 
 `
-📤 <b>SAQUE VIA PIX</b>
-
+📤 <b>Saque Pix</b>
 
 Informe o valor que deseja sacar.
 
+Exemplo: 100
 
-Exemplo:
+📌 Seu saldo será validado automaticamente.
 
-100
-
-
-Seu saldo será validado automaticamente.
-
-
-Após aprovação, o valor será enviado para sua chave Pix cadastrada.
+Após aprovação, o pagamento será enviado.
 `,
 
 {
@@ -444,7 +401,7 @@ Após aprovação, o valor será enviado para sua chave Pix cadastrada.
 parse_mode:"HTML",
 
 reply_markup:
-backMenu().reply_markup
+cancelMenu().reply_markup
 
 }
 
@@ -458,10 +415,9 @@ backMenu().reply_markup
 
 
 
-
-// ==========================
+// ========================
 // RECEBER TEXTO
-// ==========================
+// ========================
 
 
 bot.on("text",async(ctx)=>{
@@ -486,36 +442,27 @@ ctx.message.text.replace(",",".")
 if(isNaN(value)){
 
 return ctx.reply(
-"❌ Digite somente números.\nExemplo: 50"
+"❌ Digite apenas números."
 );
 
 }
 
 
 
-const minimum =
-Number(await getSetting("minimum_deposit") || 5);
-
-
-const maximum =
-Number(await getSetting("maximum_deposit") || 10000);
-
-
-
-if(value < minimum){
+if(value < 10){
 
 return ctx.reply(
-`❌ Valor mínimo: R$ ${minimum}`
+"❌ Depósito mínimo: R$10,00"
 );
 
 }
 
 
 
-if(value > maximum){
+if(value > 1000){
 
 return ctx.reply(
-`❌ Valor máximo: R$ ${maximum}`
+"❌ Depósito máximo: R$1.000,00"
 );
 
 }
@@ -550,30 +497,24 @@ status:"pending"
 return ctx.reply(
 
 `
-✅ <b>Depósito solicitado</b>
-
-
-Valor:
+✅ <b>Valor recebido</b>
 
 💰 R$ ${value.toFixed(2)}
 
+⏳ Gerando seu Pix...
 
-Estamos preparando seu Pix.
-
-
-Você receberá o QR Code e Pix copia e cola.
+Você receberá o QR Code nesta conversa.
 `,
 
 {
-
 parse_mode:"HTML"
-
 }
 
 );
 
 
 }
+
 
 
 
@@ -595,7 +536,7 @@ ctx.message.text.replace(",",".")
 if(isNaN(value)){
 
 return ctx.reply(
-"❌ Digite somente números."
+"❌ Digite apenas números."
 );
 
 }
@@ -612,18 +553,15 @@ await getWallet(user.id);
 
 
 
-if(value > wallet.balance){
-
+if(!wallet || value > wallet.balance){
 
 return ctx.reply(
 
 `
 ❌ Saldo insuficiente.
 
-
-Seu saldo:
-
-R$ ${wallet.balance.toFixed(2)}
+Saldo disponível:
+R$ ${(wallet?.balance || 0).toFixed(2)}
 `
 
 );
@@ -657,31 +595,21 @@ return ctx.reply(
 `
 ✅ <b>Saque solicitado</b>
 
+💰 Valor:
+R$ ${value.toFixed(2)}
 
-Valor:
-
-💰 R$ ${value.toFixed(2)}
-
-
-Status:
-
-⏳ Processando
-
-
-Você será atualizado quando concluído.
+⏳ Status:
+Processando
 `,
 
 {
-
 parse_mode:"HTML"
-
 }
 
 );
 
 
 }
-
 
 
 });
@@ -691,14 +619,14 @@ parse_mode:"HTML"
 
 
 
-
-
-// ==========================
+// ========================
 // CARTEIRA
-// ==========================
+// ========================
 
 
-bot.action("wallet",async(ctx)=>{
+bot.action(
+"wallet",
+async(ctx)=>{
 
 
 await ctx.answerCbQuery();
@@ -706,7 +634,6 @@ await ctx.answerCbQuery();
 
 const user =
 await getUser(ctx);
-
 
 
 const wallet =
@@ -717,16 +644,11 @@ await getWallet(user.id);
 await ctx.reply(
 
 `
-💼 <b>MINHA CARTEIRA</b>
-
+💼 <b>Minha Carteira</b>
 
 Saldo disponível:
 
-
 💰 <b>R$ ${(wallet?.balance || 0).toFixed(2)}</b>
-
-
-Sua carteira InfraPix.
 `,
 
 {
@@ -734,7 +656,7 @@ Sua carteira InfraPix.
 parse_mode:"HTML",
 
 reply_markup:
-backMenu().reply_markup
+cancelMenu().reply_markup
 
 }
 
@@ -748,13 +670,14 @@ backMenu().reply_markup
 
 
 
-
-// ==========================
+// ========================
 // REDE
-// ==========================
+// ========================
 
 
-bot.action("network",async(ctx)=>{
+bot.action(
+"network",
+async(ctx)=>{
 
 
 await ctx.answerCbQuery();
@@ -763,13 +686,9 @@ await ctx.answerCbQuery();
 await ctx.reply(
 
 `
-🌐 <b>MINHA REDE</b>
+🌐 <b>Minha Rede</b>
 
-
-Indique novos usuários e acompanhe suas comissões.
-
-
-Sistema de afiliados InfraPix.
+Convide usuários e acompanhe suas comissões.
 `,
 
 {
@@ -777,7 +696,7 @@ Sistema de afiliados InfraPix.
 parse_mode:"HTML",
 
 reply_markup:
-backMenu().reply_markup
+cancelMenu().reply_markup
 
 }
 
@@ -790,16 +709,57 @@ backMenu().reply_markup
 
 
 
+
+
+// ========================
+// CANCELAR
+// ========================
+
+
+bot.action(
+"cancel",
+async(ctx)=>{
+
+
+delete waitingDeposit[ctx.from.id];
+
+delete waitingWithdraw[ctx.from.id];
+
+
+await ctx.answerCbQuery();
+
+
+await ctx.reply(
+
+"Operação cancelada.",
+
+mainMenu()
+
+);
+
+
+});
+
+
+
+
+
+
+// ========================
 // VOLTAR
+// ========================
 
-bot.action("back",async(ctx)=>{
+
+bot.action(
+"refresh",
+async(ctx)=>{
 
 
 await ctx.answerCbQuery();
 
 
 await ctx.reply(
-"Escolha uma opção:",
+"🔄 Atualizado.",
 mainMenu()
 );
 
@@ -810,36 +770,20 @@ mainMenu()
 
 
 
-// ATUALIZAR
+bot.launch({
 
-bot.action("refresh",async(ctx)=>{
-
-
-await ctx.answerCbQuery();
-
-
-await ctx.reply(
-"🔄 Sistema atualizado.",
-mainMenu()
-);
-
+dropPendingUpdates:true
 
 });
 
-
-
-
-
-bot.launch();
 
 
 console.log(
-"🚀 InfraPix Bot online"
+"✅ InfraPix Bot online"
 );
 
 
 }
-
 
 
 module.exports={
