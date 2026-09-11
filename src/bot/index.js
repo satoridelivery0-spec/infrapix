@@ -1,24 +1,28 @@
 const { Telegraf, Markup } = require("telegraf");
 const supabase = require("../database/supabase");
 
+
 const waitingDeposit = {};
+const waitingWithdraw = {};
+
 
 
 // ==========================
 // MENUS
 // ==========================
 
+
 function mainMenu(){
 
 return Markup.inlineKeyboard([
 
 [
-Markup.button.callback("📥 Depositar","deposit"),
-Markup.button.callback("📤 Sacar","withdraw")
+Markup.button.callback("💰 Depositar Pix","deposit"),
+Markup.button.callback("📤 Saque Pix","withdraw")
 ],
 
 [
-Markup.button.callback("💼 Carteira","wallet"),
+Markup.button.callback("💼 Minha Carteira","wallet"),
 Markup.button.callback("🌐 Minha Rede","network")
 ],
 
@@ -29,6 +33,7 @@ Markup.button.callback("🔄 Atualizar","refresh")
 ]);
 
 }
+
 
 
 function backMenu(){
@@ -44,8 +49,10 @@ Markup.button.callback("⬅️ Voltar","back")
 }
 
 
+
+
 // ==========================
-// SUPABASE HELPERS
+// SUPABASE
 // ==========================
 
 
@@ -62,7 +69,7 @@ const {data,error}=await supabase
 
 if(error){
 
-console.log("Erro mídia:",error.message);
+console.log(error.message);
 
 return null;
 
@@ -72,6 +79,7 @@ return null;
 return data?.telegram_file_id || null;
 
 }
+
 
 
 
@@ -92,9 +100,12 @@ return data?.value || null;
 
 
 
+
 async function getUser(ctx){
 
+
 const telegram_id = ctx.from.id;
+
 
 
 let {data:user}=await supabase
@@ -108,10 +119,12 @@ let {data:user}=await supabase
 
 if(!user){
 
+
 const result =
 await supabase
 
 .from("users")
+
 .insert({
 
 telegram_id,
@@ -130,6 +143,7 @@ ctx.from.first_name || ""
 
 user=result.data;
 
+
 }
 
 
@@ -141,6 +155,7 @@ return user;
 
 
 async function getWallet(user_id){
+
 
 const {data}=await supabase
 
@@ -157,6 +172,7 @@ return data;
 
 
 
+
 // ==========================
 // BOT
 // ==========================
@@ -165,9 +181,12 @@ return data;
 function initBot(){
 
 
-const bot = new Telegraf(
+const bot =
+new Telegraf(
 process.env.TELEGRAM_TOKEN
 );
+
+
 
 
 
@@ -182,12 +201,13 @@ bot.start(async(ctx)=>{
 await getUser(ctx);
 
 
+
 const banner =
 await getMedia("banner_start");
 
 
 
-const message =
+const text =
 
 `
 🚀 <b>Bem-vindo ao InfraPix</b>
@@ -196,16 +216,22 @@ const message =
 Sua carteira Pix inteligente dentro do Telegram.
 
 
-Com o InfraPix você pode:
+Receba, envie e gerencie seus valores de forma rápida e prática.
 
 
-💰 Adicionar saldo rapidamente
+✨ Recursos disponíveis:
 
-⚡ Realizar pagamentos via Pix
 
-📊 Acompanhar sua movimentação
+💰 Depósitos via Pix
 
-🔒 Utilizar uma plataforma automatizada e segura
+⚡ Pagamentos automatizados
+
+📤 Saques rápidos
+
+📊 Controle de movimentações
+
+
+Tudo em um único lugar.
 
 
 Escolha uma opção abaixo:
@@ -222,7 +248,7 @@ banner,
 
 {
 
-caption:message,
+caption:text,
 
 parse_mode:"HTML",
 
@@ -239,7 +265,7 @@ mainMenu().reply_markup
 
 await ctx.reply(
 
-message,
+text,
 
 {
 
@@ -263,7 +289,7 @@ mainMenu().reply_markup
 
 
 // ==========================
-// DEPÓSITO
+// DEPOSITAR
 // ==========================
 
 
@@ -276,6 +302,7 @@ await ctx.answerCbQuery();
 waitingDeposit[ctx.from.id]=true;
 
 
+
 const image =
 await getMedia("deposit_screen");
 
@@ -283,6 +310,7 @@ await getMedia("deposit_screen");
 
 const minimum =
 Number(await getSetting("minimum_deposit") || 5);
+
 
 
 const maximum =
@@ -307,10 +335,10 @@ Exemplo:
 50
 
 
-Após informar o valor, vamos gerar automaticamente seu Pix com QR Code e código copia e cola.
+Após informar o valor, seu Pix será gerado automaticamente.
 
 
-📌 <b>Limites da operação:</b>
+📌 Limites:
 
 
 Mínimo:
@@ -321,7 +349,7 @@ Máximo:
 R$ ${maximum.toFixed(2)}
 
 
-⚡ O saldo será liberado automaticamente após a confirmação do pagamento.
+⚡ O saldo será liberado após confirmação do pagamento.
 `;
 
 
@@ -345,7 +373,6 @@ backMenu().reply_markup
 }
 
 );
-
 
 
 }else{
@@ -375,17 +402,78 @@ backMenu().reply_markup
 
 
 
+
+
 // ==========================
-// RECEBER VALOR
+// SACAR
+// ==========================
+
+
+bot.action("withdraw",async(ctx)=>{
+
+
+await ctx.answerCbQuery();
+
+
+waitingWithdraw[ctx.from.id]=true;
+
+
+
+await ctx.reply(
+
+`
+📤 <b>SAQUE VIA PIX</b>
+
+
+Informe o valor que deseja sacar.
+
+
+Exemplo:
+
+100
+
+
+Seu saldo será validado automaticamente.
+
+
+Após aprovação, o valor será enviado para sua chave Pix cadastrada.
+`,
+
+{
+
+parse_mode:"HTML",
+
+reply_markup:
+backMenu().reply_markup
+
+}
+
+);
+
+
+});
+
+
+
+
+
+
+
+// ==========================
+// RECEBER TEXTO
 // ==========================
 
 
 bot.on("text",async(ctx)=>{
 
 
-if(!waitingDeposit[ctx.from.id])
-return;
+const id = ctx.from.id;
 
+
+
+// DEPÓSITO
+
+if(waitingDeposit[id]){
 
 
 const value =
@@ -397,9 +485,8 @@ ctx.message.text.replace(",",".")
 
 if(isNaN(value)){
 
-
 return ctx.reply(
-"❌ Informe apenas números.\n\nExemplo: 50"
+"❌ Digite somente números.\nExemplo: 50"
 );
 
 }
@@ -410,7 +497,6 @@ const minimum =
 Number(await getSetting("minimum_deposit") || 5);
 
 
-
 const maximum =
 Number(await getSetting("maximum_deposit") || 10000);
 
@@ -418,9 +504,8 @@ Number(await getSetting("maximum_deposit") || 10000);
 
 if(value < minimum){
 
-
 return ctx.reply(
-`❌ O valor mínimo para depósito é R$ ${minimum.toFixed(2)}`
+`❌ Valor mínimo: R$ ${minimum}`
 );
 
 }
@@ -429,16 +514,15 @@ return ctx.reply(
 
 if(value > maximum){
 
-
 return ctx.reply(
-`❌ O valor máximo para depósito é R$ ${maximum.toFixed(2)}`
+`❌ Valor máximo: R$ ${maximum}`
 );
 
 }
 
 
 
-delete waitingDeposit[ctx.from.id];
+delete waitingDeposit[id];
 
 
 
@@ -463,21 +547,21 @@ status:"pending"
 
 
 
-await ctx.reply(
+return ctx.reply(
 
 `
-✅ <b>Valor recebido!</b>
+✅ <b>Depósito solicitado</b>
 
 
-💰 Valor:
+Valor:
 
-R$ ${value.toFixed(2)}
-
-
-⏳ Estamos preparando seu Pix.
+💰 R$ ${value.toFixed(2)}
 
 
-Você receberá o QR Code e o código copia e cola nesta conversa.
+Estamos preparando seu Pix.
+
+
+Você receberá o QR Code e Pix copia e cola.
 `,
 
 {
@@ -489,7 +573,120 @@ parse_mode:"HTML"
 );
 
 
+}
+
+
+
+
+
+// SAQUE
+
+
+if(waitingWithdraw[id]){
+
+
+const value =
+Number(
+ctx.message.text.replace(",",".")
+);
+
+
+
+if(isNaN(value)){
+
+return ctx.reply(
+"❌ Digite somente números."
+);
+
+}
+
+
+
+const user =
+await getUser(ctx);
+
+
+
+const wallet =
+await getWallet(user.id);
+
+
+
+if(value > wallet.balance){
+
+
+return ctx.reply(
+
+`
+❌ Saldo insuficiente.
+
+
+Seu saldo:
+
+R$ ${wallet.balance.toFixed(2)}
+`
+
+);
+
+}
+
+
+
+delete waitingWithdraw[id];
+
+
+
+await supabase
+
+.from("withdrawals")
+
+.insert({
+
+user_id:user.id,
+
+amount:value,
+
+status:"pending"
+
 });
+
+
+
+return ctx.reply(
+
+`
+✅ <b>Saque solicitado</b>
+
+
+Valor:
+
+💰 R$ ${value.toFixed(2)}
+
+
+Status:
+
+⏳ Processando
+
+
+Você será atualizado quando concluído.
+`,
+
+{
+
+parse_mode:"HTML"
+
+}
+
+);
+
+
+}
+
+
+
+});
+
+
 
 
 
@@ -523,17 +720,13 @@ await ctx.reply(
 💼 <b>MINHA CARTEIRA</b>
 
 
-💰 Saldo disponível:
-
-<b>R$ ${(wallet?.balance || 0).toFixed(2)}</b>
+Saldo disponível:
 
 
-📥 Total depositado:
-R$ 0,00
+💰 <b>R$ ${(wallet?.balance || 0).toFixed(2)}</b>
 
 
-📤 Total sacado:
-R$ 0,00
+Sua carteira InfraPix.
 `,
 
 {
@@ -550,48 +743,6 @@ backMenu().reply_markup
 
 });
 
-
-
-
-
-
-// ==========================
-// SAQUE
-// ==========================
-
-
-bot.action("withdraw",async(ctx)=>{
-
-
-await ctx.answerCbQuery();
-
-
-
-await ctx.reply(
-
-`
-📤 <b>SAQUE VIA PIX</b>
-
-
-Em breve você poderá solicitar seu saque diretamente pelo Telegram.
-
-
-O sistema validará automaticamente seu saldo.
-`,
-
-{
-
-parse_mode:"HTML",
-
-reply_markup:
-backMenu().reply_markup
-
-}
-
-);
-
-
-});
 
 
 
@@ -609,17 +760,16 @@ bot.action("network",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-
 await ctx.reply(
 
 `
 🌐 <b>MINHA REDE</b>
 
 
-Seu link de indicação será criado aqui.
+Indique novos usuários e acompanhe suas comissões.
 
 
-Ganhe comissões indicando novos usuários.
+Sistema de afiliados InfraPix.
 `,
 
 {
@@ -640,11 +790,7 @@ backMenu().reply_markup
 
 
 
-
-// ==========================
 // VOLTAR
-// ==========================
-
 
 bot.action("back",async(ctx)=>{
 
@@ -653,11 +799,8 @@ await ctx.answerCbQuery();
 
 
 await ctx.reply(
-
 "Escolha uma opção:",
-
 mainMenu()
-
 );
 
 
@@ -667,10 +810,7 @@ mainMenu()
 
 
 
-// ==========================
 // ATUALIZAR
-// ==========================
-
 
 bot.action("refresh",async(ctx)=>{
 
@@ -679,11 +819,8 @@ await ctx.answerCbQuery();
 
 
 await ctx.reply(
-
 "🔄 Sistema atualizado.",
-
 mainMenu()
-
 );
 
 
@@ -697,7 +834,7 @@ bot.launch();
 
 
 console.log(
-"🚀 InfraPix Bot iniciado"
+"🚀 InfraPix Bot online"
 );
 
 
