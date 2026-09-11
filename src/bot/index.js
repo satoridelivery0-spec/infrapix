@@ -5,23 +5,23 @@ const supabase = require("../database/supabase");
 // MENU PRINCIPAL
 function mainMenu() {
 
-return Markup.inlineKeyboard([
+    return Markup.inlineKeyboard([
 
-[
-Markup.button.callback("📥 DEPOSITAR", "deposit"),
-Markup.button.callback("📤 SACAR", "withdraw")
-],
+        [
+            Markup.button.callback("📥 DEPOSITAR", "deposit"),
+            Markup.button.callback("📤 SACAR", "withdraw")
+        ],
 
-[
-Markup.button.callback("💼 CARTEIRA", "wallet"),
-Markup.button.callback("🌐 MINHA REDE", "network")
-],
+        [
+            Markup.button.callback("💼 CARTEIRA", "wallet"),
+            Markup.button.callback("🌐 MINHA REDE", "network")
+        ],
 
-[
-Markup.button.callback("🔄 ATUALIZAR", "refresh")
-]
+        [
+            Markup.button.callback("🔄 ATUALIZAR", "refresh")
+        ]
 
-]);
+    ]);
 
 }
 
@@ -29,62 +29,56 @@ Markup.button.callback("🔄 ATUALIZAR", "refresh")
 // MENU DEPÓSITO
 function depositMenu(){
 
-return Markup.inlineKeyboard([
+    return Markup.inlineKeyboard([
 
-[
-Markup.button.callback(
-"💰 GERAR PIX",
-"generate_pix"
-)
-],
+        [
+            Markup.button.callback(
+                "💰 GERAR PIX",
+                "generate_pix"
+            )
+        ],
 
-[
-Markup.button.callback(
-"⬅️ VOLTAR",
-"back_menu"
-)
-]
+        [
+            Markup.button.callback(
+                "⬅️ VOLTAR",
+                "back_menu"
+            )
+        ]
 
-]);
+    ]);
 
 }
 
 
 // MENU SAQUE
+
 function withdrawMenu(){
 
-return Markup.inlineKeyboard([
+    return Markup.inlineKeyboard([
 
-[
-Markup.button.callback(
-"💸 SOLICITAR SAQUE",
-"request_withdraw"
-)
-],
+        [
+            Markup.button.callback(
+                "⬅️ VOLTAR",
+                "back_menu"
+            )
+        ]
 
-[
-Markup.button.callback(
-"⬅️ VOLTAR",
-"back_menu"
-)
-]
-
-]);
+    ]);
 
 }
 
 
-// INICIAR BOT
+
 function initBot(){
 
 
 const bot = new Telegraf(
-process.env.TELEGRAM_TOKEN
+    process.env.TELEGRAM_TOKEN
 );
 
 
 
-// START
+// START COM BANNER
 
 bot.start(async(ctx)=>{
 
@@ -118,17 +112,28 @@ first_name:ctx.from.first_name || ""
 
 
 
-ctx.reply(
+await ctx.replyWithPhoto(
 
-`🚀 Bem-vindo ao InfraPix
+"https://i.imgur.com/XYffKvd.jpeg",
+
+{
+
+caption:
+
+`🚀 <b>Bem-vindo ao InfraPix</b>
 
 
 Sua carteira Pix dentro do Telegram.
 
 
-Escolha uma opção:`,
+Escolha uma opção abaixo:`,
 
-mainMenu()
+parse_mode:"HTML",
+
+reply_markup:
+mainMenu().reply_markup
+
+}
 
 );
 
@@ -137,21 +142,19 @@ mainMenu()
 
 
 
-// =======================
-// DEPÓSITO
-// =======================
 
-bot.action("deposit",async(ctx)=>{
+// DEPÓSITO
+
+bot.action("deposit", async(ctx)=>{
 
 
 await ctx.answerCbQuery();
 
 
+
 await ctx.replyWithPhoto(
 
-{
-url:"https://i.imgur.com/rLuFNkQ.png"
-},
+"https://i.imgur.com/rLuFNkQ.png",
 
 {
 
@@ -163,7 +166,7 @@ caption:
 Digite o valor que deseja depositar.
 
 
-Após confirmar, será gerado seu QR Code Pix.
+Após confirmar, será gerado seu pagamento Pix.
 
 
 Valor mínimo: R$5,00`,
@@ -182,6 +185,7 @@ depositMenu().reply_markup
 
 
 
+
 // GERAR PIX
 
 bot.action("generate_pix",async(ctx)=>{
@@ -190,7 +194,7 @@ bot.action("generate_pix",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-ctx.reply(
+await ctx.reply(
 
 `⏳ Gerando seu Pix...
 
@@ -206,10 +210,9 @@ depositMenu()
 
 
 
-// =======================
-// CARTEIRA
-// =======================
 
+
+// CARTEIRA
 
 bot.action("wallet",async(ctx)=>{
 
@@ -217,7 +220,7 @@ bot.action("wallet",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-ctx.reply(
+await ctx.reply(
 
 `💼 <b>SUA CARTEIRA DIGITAL</b>
 
@@ -226,27 +229,25 @@ ctx.reply(
 R$ 0,00
 
 
-📥 Depositado:
+📥 Depósitos:
 R$ 0,00
 
 
-📤 Sacado:
-R$ 0,00
-
-
-💸 Comissões:
+📤 Saques:
 R$ 0,00`,
 
 {
+
 parse_mode:"HTML",
-reply_markup:Markup.inlineKeyboard([
+
+reply_markup:
+Markup.inlineKeyboard([
 
 [
 Markup.button.callback(
 "⬅️ VOLTAR",
 "back_menu"
 )
-
 ]
 
 ]).reply_markup
@@ -260,10 +261,9 @@ Markup.button.callback(
 
 
 
-// =======================
-// SAQUE
-// =======================
 
+
+// SAQUE
 
 bot.action("withdraw",async(ctx)=>{
 
@@ -271,12 +271,12 @@ bot.action("withdraw",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-ctx.reply(
+await ctx.reply(
 
 `📤 <b>SAQUE VIA PIX</b>
 
 
-Informe sua chave Pix para continuar.`,
+Área de saque.`,
 
 {
 
@@ -294,10 +294,9 @@ withdrawMenu().reply_markup
 
 
 
-// =======================
-// MINHA REDE
-// =======================
 
+
+// MINHA REDE
 
 bot.action("network",async(ctx)=>{
 
@@ -305,12 +304,12 @@ bot.action("network",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-ctx.reply(
+await ctx.reply(
 
 `🌐 <b>MINHA REDE</b>
 
 
-Convide usuários e receba comissões.`,
+Sistema de afiliados InfraPix.`,
 
 {
 
@@ -338,7 +337,9 @@ Markup.button.callback(
 
 
 
-// VOLTAR AO MENU
+
+
+// VOLTAR
 
 bot.action("back_menu",async(ctx)=>{
 
@@ -346,7 +347,7 @@ bot.action("back_menu",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-ctx.reply(
+await ctx.reply(
 
 "Escolha uma opção:",
 
@@ -359,6 +360,8 @@ mainMenu()
 
 
 
+
+
 // ATUALIZAR
 
 bot.action("refresh",async(ctx)=>{
@@ -367,11 +370,21 @@ bot.action("refresh",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-ctx.editMessageText(
+await ctx.editMessageCaption(
 
-"🔄 Sistema atualizado.\n\nEscolha uma opção:",
+`🚀 <b>InfraPix atualizado</b>
 
-mainMenu()
+
+Escolha uma opção:`,
+
+{
+
+parse_mode:"HTML",
+
+reply_markup:
+mainMenu().reply_markup
+
+}
 
 );
 
@@ -380,15 +393,18 @@ mainMenu()
 
 
 
+
+
 bot.launch();
 
 
 console.log(
-"Bot InfraPix iniciado 🚀"
+"InfraPix Bot iniciado 🚀"
 );
 
 
 }
+
 
 
 module.exports={
