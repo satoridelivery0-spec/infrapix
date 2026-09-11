@@ -1,14 +1,12 @@
 const { Telegraf, Markup } = require("telegraf");
 const supabase = require("../database/supabase");
 
-
-// Controle temporário de usuários digitando valor
 const waitingDeposit = {};
 
 
-// =============================
+// ==========================
 // MENUS
-// =============================
+// ==========================
 
 function mainMenu(){
 
@@ -33,8 +31,7 @@ Markup.button.callback("🔄 Atualizar","refresh")
 }
 
 
-
-function backButton(){
+function backMenu(){
 
 return Markup.inlineKeyboard([
 
@@ -47,47 +44,19 @@ Markup.button.callback("⬅️ Voltar","back")
 }
 
 
+// ==========================
+// SUPABASE HELPERS
+// ==========================
 
-function depositMenu(){
-
-return Markup.inlineKeyboard([
-
-[
-Markup.button.callback(
-"💰 Gerar Pix",
-"generate_pix"
-)
-],
-
-[
-Markup.button.callback(
-"⬅️ Voltar",
-"back"
-)
-]
-
-]);
-
-}
-
-
-
-// =============================
-// BUSCAR IMAGEM SUPABASE
-// =============================
 
 async function getMedia(slug){
 
 const {data,error}=await supabase
 
 .from("telegram_media")
-
 .select("telegram_file_id")
-
 .eq("slug",slug)
-
 .eq("active",true)
-
 .single();
 
 
@@ -106,21 +75,13 @@ return data?.telegram_file_id || null;
 
 
 
-
-// =============================
-// BUSCAR CONFIGURAÇÃO
-// =============================
-
 async function getSetting(key){
 
 const {data}=await supabase
 
 .from("settings")
-
 .select("value")
-
 .eq("key",key)
-
 .single();
 
 
@@ -131,27 +92,16 @@ return data?.value || null;
 
 
 
-// =============================
-// CRIAR USUÁRIO
-// =============================
-
 async function getUser(ctx){
 
 const telegram_id = ctx.from.id;
 
 
-
 let {data:user}=await supabase
 
 .from("users")
-
 .select("*")
-
-.eq(
-"telegram_id",
-telegram_id
-)
-
+.eq("telegram_id",telegram_id)
 .single();
 
 
@@ -162,7 +112,6 @@ const result =
 await supabase
 
 .from("users")
-
 .insert({
 
 telegram_id,
@@ -176,7 +125,6 @@ ctx.from.first_name || ""
 })
 
 .select()
-
 .single();
 
 
@@ -192,10 +140,26 @@ return user;
 
 
 
+async function getWallet(user_id){
 
-// =============================
+const {data}=await supabase
+
+.from("wallets")
+.select("*")
+.eq("user_id",user_id)
+.single();
+
+
+return data;
+
+}
+
+
+
+
+// ==========================
 // BOT
-// =============================
+// ==========================
 
 
 function initBot(){
@@ -207,9 +171,9 @@ process.env.TELEGRAM_TOKEN
 
 
 
-// =============================
+// ==========================
 // START
-// =============================
+// ==========================
 
 
 bot.start(async(ctx)=>{
@@ -218,11 +182,8 @@ bot.start(async(ctx)=>{
 await getUser(ctx);
 
 
-
 const banner =
-await getMedia(
-"banner_start"
-);
+await getMedia("banner_start");
 
 
 
@@ -232,15 +193,22 @@ const message =
 🚀 <b>Bem-vindo ao InfraPix</b>
 
 
-Sua carteira digital Pix dentro do Telegram.
+Sua carteira Pix inteligente dentro do Telegram.
 
 
-💳 Deposite
-💰 Controle seu saldo
-⚡ Receba pagamentos automaticamente
+Com o InfraPix você pode:
 
 
-Escolha uma opção:
+💰 Adicionar saldo rapidamente
+
+⚡ Realizar pagamentos via Pix
+
+📊 Acompanhar sua movimentação
+
+🔒 Utilizar uma plataforma automatizada e segura
+
+
+Escolha uma opção abaixo:
 `;
 
 
@@ -288,16 +256,15 @@ mainMenu().reply_markup
 }
 
 
-
 });
 
 
 
 
 
-// =============================
+// ==========================
 // DEPÓSITO
-// =============================
+// ==========================
 
 
 bot.action("deposit",async(ctx)=>{
@@ -306,22 +273,20 @@ bot.action("deposit",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-
 waitingDeposit[ctx.from.id]=true;
 
 
-
 const image =
-await getMedia(
-"deposit_screen"
-);
+await getMedia("deposit_screen");
 
 
 
 const minimum =
-await getSetting(
-"minimum_deposit"
-);
+Number(await getSetting("minimum_deposit") || 5);
+
+
+const maximum =
+Number(await getSetting("maximum_deposit") || 10000);
 
 
 
@@ -331,7 +296,10 @@ const text =
 💰 <b>DEPÓSITO VIA PIX</b>
 
 
-Informe abaixo o valor que deseja adicionar na sua carteira.
+Adicione saldo à sua carteira de forma rápida e segura.
+
+
+Digite abaixo o valor que deseja depositar.
 
 
 Exemplo:
@@ -339,15 +307,21 @@ Exemplo:
 50
 
 
-Após enviar o valor, iremos gerar seu Pix automaticamente.
+Após informar o valor, vamos gerar automaticamente seu Pix com QR Code e código copia e cola.
 
 
-🔒 Pagamento seguro
-⚡ Aprovação automática
+📌 <b>Limites da operação:</b>
 
 
-Valor mínimo:
-R$ ${minimum}
+Mínimo:
+R$ ${minimum.toFixed(2)}
+
+
+Máximo:
+R$ ${maximum.toFixed(2)}
+
+
+⚡ O saldo será liberado automaticamente após a confirmação do pagamento.
 `;
 
 
@@ -366,11 +340,12 @@ caption:text,
 parse_mode:"HTML",
 
 reply_markup:
-depositMenu().reply_markup
+backMenu().reply_markup
 
 }
 
 );
+
 
 
 }else{
@@ -385,7 +360,7 @@ text,
 parse_mode:"HTML",
 
 reply_markup:
-depositMenu().reply_markup
+backMenu().reply_markup
 
 }
 
@@ -400,22 +375,15 @@ depositMenu().reply_markup
 
 
 
-
-
-// =============================
-// RECEBER VALOR DEPÓSITO
-// =============================
+// ==========================
+// RECEBER VALOR
+// ==========================
 
 
 bot.on("text",async(ctx)=>{
 
 
-const userId =
-ctx.from.id;
-
-
-
-if(!waitingDeposit[userId])
+if(!waitingDeposit[ctx.from.id])
 return;
 
 
@@ -431,18 +399,20 @@ if(isNaN(value)){
 
 
 return ctx.reply(
-"❌ Digite apenas números.\n\nExemplo: 50"
+"❌ Informe apenas números.\n\nExemplo: 50"
 );
-
 
 }
 
 
 
 const minimum =
-Number(
-await getSetting("minimum_deposit") || 5
-);
+Number(await getSetting("minimum_deposit") || 5);
+
+
+
+const maximum =
+Number(await getSetting("maximum_deposit") || 10000);
 
 
 
@@ -450,15 +420,25 @@ if(value < minimum){
 
 
 return ctx.reply(
-`❌ O valor mínimo é R$ ${minimum}`
+`❌ O valor mínimo para depósito é R$ ${minimum.toFixed(2)}`
 );
-
 
 }
 
 
 
-delete waitingDeposit[userId];
+if(value > maximum){
+
+
+return ctx.reply(
+`❌ O valor máximo para depósito é R$ ${maximum.toFixed(2)}`
+);
+
+}
+
+
+
+delete waitingDeposit[ctx.from.id];
 
 
 
@@ -486,18 +466,18 @@ status:"pending"
 await ctx.reply(
 
 `
-✅ <b>Solicitação criada!</b>
+✅ <b>Valor recebido!</b>
 
 
-Valor:
+💰 Valor:
 
-💰 R$ ${value.toFixed(2)}
-
-
-Estamos preparando seu Pix.
+R$ ${value.toFixed(2)}
 
 
-Aguarde...
+⏳ Estamos preparando seu Pix.
+
+
+Você receberá o QR Code e o código copia e cola nesta conversa.
 `,
 
 {
@@ -509,7 +489,6 @@ parse_mode:"HTML"
 );
 
 
-
 });
 
 
@@ -517,37 +496,9 @@ parse_mode:"HTML"
 
 
 
-
-// =============================
-// GERAR PIX
-// =============================
-
-
-bot.action("generate_pix",async(ctx)=>{
-
-
-await ctx.answerCbQuery();
-
-
-await ctx.reply(
-
-`
-⚡ O Pix será gerado automaticamente após informar o valor.
-`
-
-);
-
-
-});
-
-
-
-
-
-
-// =============================
+// ==========================
 // CARTEIRA
-// =============================
+// ==========================
 
 
 bot.action("wallet",async(ctx)=>{
@@ -556,57 +507,13 @@ bot.action("wallet",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
-
 const user =
 await getUser(ctx);
 
 
 
-const {data:wallet}=await supabase
-
-.from("wallets")
-
-.select("*")
-
-.eq("user_id",user.id)
-
-.single();
-
-
-
-const balance =
-wallet?.balance || 0;
-
-
-
-const {data:transactions}=await supabase
-
-.from("wallet_transactions")
-
-.select("*")
-
-.eq("user_id",user.id)
-
-.order("created_at",
-{
-ascending:false
-})
-
-.limit(5);
-
-
-
-let history="";
-
-
-
-transactions?.forEach(t=>{
-
-history +=
-`\n${t.type}: R$ ${t.amount}`;
-
-});
-
+const wallet =
+await getWallet(user.id);
 
 
 
@@ -616,14 +523,17 @@ await ctx.reply(
 💼 <b>MINHA CARTEIRA</b>
 
 
-💰 Saldo atual:
+💰 Saldo disponível:
 
-<b>R$ ${balance.toFixed(2)}</b>
+<b>R$ ${(wallet?.balance || 0).toFixed(2)}</b>
 
 
-📜 Últimas movimentações:
+📥 Total depositado:
+R$ 0,00
 
-${history || "Nenhuma movimentação"}
+
+📤 Total sacado:
+R$ 0,00
 `,
 
 {
@@ -631,7 +541,7 @@ ${history || "Nenhuma movimentação"}
 parse_mode:"HTML",
 
 reply_markup:
-backButton().reply_markup
+backMenu().reply_markup
 
 }
 
@@ -645,9 +555,9 @@ backButton().reply_markup
 
 
 
-// =============================
+// ==========================
 // SAQUE
-// =============================
+// ==========================
 
 
 bot.action("withdraw",async(ctx)=>{
@@ -656,16 +566,17 @@ bot.action("withdraw",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
+
 await ctx.reply(
 
 `
-📤 <b>SAQUE PIX</b>
+📤 <b>SAQUE VIA PIX</b>
 
 
 Em breve você poderá solicitar seu saque diretamente pelo Telegram.
 
 
-Seu saldo será validado automaticamente.
+O sistema validará automaticamente seu saldo.
 `,
 
 {
@@ -673,7 +584,7 @@ Seu saldo será validado automaticamente.
 parse_mode:"HTML",
 
 reply_markup:
-backButton().reply_markup
+backMenu().reply_markup
 
 }
 
@@ -687,9 +598,9 @@ backButton().reply_markup
 
 
 
-// =============================
+// ==========================
 // REDE
-// =============================
+// ==========================
 
 
 bot.action("network",async(ctx)=>{
@@ -698,18 +609,17 @@ bot.action("network",async(ctx)=>{
 await ctx.answerCbQuery();
 
 
+
 await ctx.reply(
 
 `
 🌐 <b>MINHA REDE</b>
 
 
-Seu link de indicação:
-
-Em desenvolvimento.
+Seu link de indicação será criado aqui.
 
 
-Ganhe comissões indicando usuários.
+Ganhe comissões indicando novos usuários.
 `,
 
 {
@@ -717,7 +627,7 @@ Ganhe comissões indicando usuários.
 parse_mode:"HTML",
 
 reply_markup:
-backButton().reply_markup
+backMenu().reply_markup
 
 }
 
@@ -731,9 +641,9 @@ backButton().reply_markup
 
 
 
-// =============================
+// ==========================
 // VOLTAR
-// =============================
+// ==========================
 
 
 bot.action("back",async(ctx)=>{
@@ -757,17 +667,15 @@ mainMenu()
 
 
 
-
-// =============================
+// ==========================
 // ATUALIZAR
-// =============================
+// ==========================
 
 
 bot.action("refresh",async(ctx)=>{
 
 
 await ctx.answerCbQuery();
-
 
 
 await ctx.reply(
@@ -789,7 +697,7 @@ bot.launch();
 
 
 console.log(
-"🚀 InfraPix iniciado"
+"🚀 InfraPix Bot iniciado"
 );
 
 
