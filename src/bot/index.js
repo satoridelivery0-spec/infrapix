@@ -150,7 +150,7 @@ await ctx.answerCbQuery();
 await ctx.replyWithPhoto(
 
 {
-url:"https://i.imgur.com/SEU_LINK_DA_IMAGEM.png"
+url:"https://i.imgur.com/rLuFNkQ.png"
 },
 
 {
